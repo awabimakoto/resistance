@@ -114,14 +114,14 @@ function room($roomid, $user){
 	}
 
 	$current += 1;
-	$test_roleflag = mysql_query("SELECT roleflag FROM room WHERE roomid=".$roomid);
+	$test_roleflag = mysql_query("SELECT roleflag FROM room WHERE roomid=".$roomid,$link);
 	$roleflag = mysql_fetch_assoc($test_roleflag)['roleflag'];
 	if (getrole($roleflag,$current)){
 		mysql_query("INSERT INTO player (id, room, role, voted) VALUES ('".$user."',".$roomid.",TRUE,FALSE)",$link);
 	} else{
 		mysql_query("INSERT INTO player (id, room, role, voted) VALUES ('".$user."',".$roomid.",FALSE,FALSE)",$link);
 	}
-	mysql_query("UPDATE room SET currentnumber=".$current." WHERE roomid=".$roomid);
+	mysql_query("UPDATE room SET currentnumber=".$current." WHERE roomid=".$roomid,$link);
 	$result = "你已加入".$number."人房间（抵抗者".$roles[$number][0]."人，间谍".$roles[$number][1]."人），房间号".$roomid."。当前已有".$current."人。\n你的身份是".$rolename[getrole($roleflag,$current)]."。";
 	if ($current==$number){
 		mysql_query("UPDATE room SET status=1 WHERE roomid=".$roomid,$link);
