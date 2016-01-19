@@ -74,7 +74,7 @@ function create($number, $creator){
 	} else{
 		mysql_query("INSERT INTO player (id, room, role, voted) VALUES ('".$creator."',".$roomid.",FALSE,FALSE)",$link);
 	}
-	mysql_query("INSERT INTO room (roomid, roleflag, totalnumber, currentnumber, turn, votes, disagree, status, success, fail, deny) VALUES (".$roomid.",".$roleflag.",".$number.",1,0,0,0,0,0,0,0)",$link);
+	mysql_query("INSERT INTO room (roomid, roleflag, totalnumber, currentnumber, turn, votes, disagree, status, success, fail, deny, last) VALUES (".$roomid.",".$roleflag.",".$number.",1,0,0,0,0,0,0,0,'还没有进行过投票。')",$link);
 	mysql_close($link);
 	return "你已开房".$roomid."，其中抵抗者".$roles[$number][0]."人，间谍".$roles[$number][1]."人。快召唤基/姬友一起来嘿嘿嘿吧！\n你的身份是".$rolename[getrole($roleflag,1)]."。";
 }
@@ -190,6 +190,18 @@ function command($command, $user){
 				$result="你不在任何房间中。";
 			}
 			break;
+		case 'result':
+		case '结果':
+			$test_id_exist=mysql_query("SELECT room FROM player WHERE id='".$user."'",$link);
+			if (mysql_num_rows($test_id_exist)){
+				$userinfo = mysql_fetch_assoc($test_id_exist);
+				$fetch_room = mysql_query("SELECT last FROM room WHERE roomid=".$userinfo['room'],$link);
+				$roominfo = mysql_fetch_assoc($fetch_room);
+				$result=$roominfo['last'];
+			} else{
+				$result="你不在任何房间中。";
+			}
+			break;
 		default:
 			$result=$document;
 	}
@@ -239,6 +251,7 @@ function vote($option, $user){
 				if ($disagree>=(ceil($votes)/2)){
 					$deny=$roominfo['deny']+1;
 					$result=$result."\n".($votes-$disagree)."人支持，".$disagree."人反对，组队失败。\n这是第".$deny."次组队失败。";
+					$last=($votes-$disagree)."人支持，".$disagree."人反对，组队失败。\n这是第".$deny."次组队失败。";
 					if ($deny==5){
 						$result=$result."\n游戏结束，间谍胜利。";
 						mysql_query("DELETE FROM player WHERE room=".$userinfo['room'],$link);
@@ -246,10 +259,11 @@ function vote($option, $user){
 						mysql_close($link);
 						return $result;
 					}
-					mysql_query("UPDATE room SET deny=".$deny." WHERE roomid=".$userinfo['room'],$link);
+					mysql_query("UPDATE room SET deny=".$deny.",last='".$last."' WHERE roomid=".$userinfo['room'],$link);
 				} else{
 					$result=$result."\n".($votes-$disagree)."人支持，".$disagree."人反对，组队成功。请开始做任务。";
-					mysql_query("UPDATE room SET turn=".($roominfo['turn']+1).",status=2 WHERE roomid=".$userinfo['room'],$link);
+					$last=($votes-$disagree)."人支持，".$disagree."人反对，组队成功。请开始做任务。";
+					mysql_query("UPDATE room SET turn=".($roominfo['turn']+1).",status=2,last='".$last."' WHERE roomid=".$userinfo['room'],$link);
 					mysql_close($link);
 					return $result;
 				}
@@ -271,6 +285,7 @@ function vote($option, $user){
 				mysql_query("UPDATE room SET votes=0,disagree=0,deny=0 WHERE roomid=".$userinfo['room'],$link);
 				if ($disagree>$fails[$max][($roominfo['turn']-1)]){
 					$result=$result."\n".$disagree."人破坏任务，第".$roominfo['turn']."回合任务失败。";
+					$last=$disagree."人破坏任务，第".$roominfo['turn']."回合任务失败。";
 					$fail=$roominfo['fail']+1;
 					if ($fail==3){
 						$result=$result."\n"."游戏结束，间谍胜利。";
@@ -279,9 +294,10 @@ function vote($option, $user){
 						mysql_close($link);
 						return $result;
 					}
-					mysql_query("UPDATE room SET status=1,fail=".$fail." WHERE roomid=".$userinfo['room'],$link);
+					mysql_query("UPDATE room SET status=1,fail=".$fail.",last='".$last."' WHERE roomid=".$userinfo['room'],$link);
 				} else{
 					$result=$result."\n".$disagree."人破坏任务，第".$roominfo['turn']."回合任务成功。";
+					$last=$disagree."人破坏任务，第".$roominfo['turn']."回合任务成功。";
 					$success=$roominfo['success']+1;
 					if ($success==3){
 						$result=$result."\n"."游戏结束，抵抗者胜利。";
@@ -290,7 +306,7 @@ function vote($option, $user){
 						mysql_close($link);
 						return $result;
 					}
-					mysql_query("UPDATE room SET status=1,success=".$success." WHERE roomid=".$userinfo['room'],$link);
+					mysql_query("UPDATE room SET status=1,success=".$success.",last='".$last."' WHERE roomid=".$userinfo['room'],$link);
 				}
 				$result=$result."进入第".($roominfo['turn']+1)."轮，请领袖选出".$tasks[$max][$roominfo['turn']]."人做任务。允许".$fails[$max][$roominfo['turn']]."人破坏。";
 			}
