@@ -209,7 +209,7 @@ function command($command, $user){
 	return $result;
 }
 
-function vote($option, $user){
+function vote($option, $user, $msgid){
 	global $tasks, $fails;
 	$link = mysql_connect(DB_HOST, DB_USER, DB_PASS);
 	if (!$link) {
@@ -221,9 +221,12 @@ function vote($option, $user){
 		die('database fail '.mysql_error());
 	}
 
-	$test_id_exist = mysql_query("SELECT room,role,voted FROM player WHERE id='".$user."'",$link);
+	$test_id_exist = mysql_query("SELECT room,role,voted,msgid FROM player WHERE id='".$user."'",$link);
 	if (mysql_num_rows($test_id_exist)){
 		$userinfo = mysql_fetch_assoc($test_id_exist);
+		if ($userinfo['msgid']==$msgid){
+			return;
+		}
 		if ($userinfo['voted']){
 			mysql_close($link);
 			return "你已投票。";
@@ -243,7 +246,7 @@ function vote($option, $user){
 			}
 			$votes+=1;
 			$result="投票成功。";
-			mysql_query("UPDATE player SET voted=TRUE WHERE id='".$user."'",$link);
+			mysql_query("UPDATE player SET voted=TRUE,msgid=".$msgid." WHERE id='".$user."'",$link);
 			mysql_query("UPDATE room SET disagree=".$disagree.",votes=".$votes." WHERE roomid=".$userinfo['room'],$link);
 			if ($votes==$max){
 				mysql_query("UPDATE player SET voted=FALSE WHERE room=".$userinfo['room'],$link);
@@ -278,7 +281,7 @@ function vote($option, $user){
 			}
 			$votes+=1;
 			$result="投票成功（抵抗者一律视为做任务）。";
-			mysql_query("UPDATE player SET voted=TRUE WHERE id='".$user."'",$link);
+			mysql_query("UPDATE player SET voted=TRUE,msgid=".$msgid." WHERE id='".$user."'",$link);
 			mysql_query("UPDATE room SET disagree=".$disagree.",votes=".$votes." WHERE roomid=".$userinfo['room'],$link);
 			if ($votes==$maxtask){
 				mysql_query("UPDATE player SET voted=FALSE WHERE room=".$userinfo['room'],$link);
@@ -325,6 +328,7 @@ if (!empty($postStr)){
 	$fromUsername = $postObj->FromUserName;
 	$toUsername = $postObj->ToUserName;
 	$form_MsgType = $postObj->MsgType;
+	$msgid = $postObj->MsgId;
 
 if($form_MsgType=="event"){
 	$form_Event = $postObj->Event;
@@ -337,7 +341,7 @@ if($form_MsgType=="event"){
 } elseif ($form_MsgType=="text"){
 	$form_content = trim($postObj->Content);
 	if (preg_match($pattern_vote, $form_content)){
-	$feedback=vote($form_content, $fromUsername);
+	$feedback=vote($form_content, $fromUsername, $msgid);
 	} elseif (preg_match($pattern_create, $form_content)){
 	$feedback=create($form_content, $fromUsername);
 	} elseif (preg_match($pattern_room, $form_content)){
