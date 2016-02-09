@@ -25,7 +25,7 @@ while 1:
 	c.setopt(c.WRITEFUNCTION,buffer.write)
 	c.perform()
 	c.close()
-	feedback=buffer.getvalue().decode()
+	feedback=buffer.getvalue()
 	element=ET.fromstring(feedback)
 	content=element.find('Content')
 	print content.text
